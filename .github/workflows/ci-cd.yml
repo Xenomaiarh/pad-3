@@ -91,6 +91,11 @@ jobs:
           
           echo "services=$services" >> $GITHUB_OUTPUT
 
+      - name: Debug - Show detected services
+        run: |
+          echo "Detected services: ${{ steps.set-services.outputs.services }}"
+          echo "Services length: $(echo '${{ steps.set-services.outputs.services }}' | jq 'length')"
+
       - name: Run per-service tests
         if: steps.set-services.outputs.services != '[]'
         run: |
@@ -126,7 +131,7 @@ jobs:
     name: Build and push changed images
     runs-on: ubuntu-latest
     needs: run_tests
-    if: fromJson(needs.run_tests.outputs.services).length > 0
+    if: needs.run_tests.outputs.services != '[]' && needs.run_tests.outputs.services != ''
     strategy:
       matrix:
         service: ${{ fromJson(needs.run_tests.outputs.services) }}
