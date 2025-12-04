@@ -130,7 +130,7 @@ jobs:
     name: Build and push changed images
     runs-on: ubuntu-latest
     needs: run_tests
-    if: fromJson(needs.run_tests.outputs.services).length > 0
+    if: needs.run_tests.outputs.services != '[]'
     strategy:
       matrix:
         service: ${{ fromJson(needs.run_tests.outputs.services) }}
