@@ -209,7 +209,7 @@ jobs:
           fi
 
       - name: Send Telegram message
-        if: secrets.TELEGRAM_BOT_TOKEN != '' && secrets.TELEGRAM_CHAT_ID != ''
+        continue-on-error: true
         run: |
           curl -X POST \
             -H 'Content-Type: application/json' \
