@@ -13,7 +13,7 @@ module.exports = {
     },
     {
       id: 'p2',
-      title: 'Gaming Mouse2',
+      title: 'Gaming Mouse234555',
       description: 'Ergonomic gaming mouse with programmable buttons.',
       price: 49.5,
       category: 'electronics',
