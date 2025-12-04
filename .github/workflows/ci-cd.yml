@@ -91,6 +91,10 @@ jobs:
           
           echo "services=$services" >> $GITHUB_OUTPUT
 
+      - name: Debug - show detected services
+        run: |
+          echo "Detected services: ${{ steps.set-services.outputs.services }}"
+
       - name: Run per-service tests
         if: steps.set-services.outputs.services != '[]'
         run: |
@@ -232,4 +236,3 @@ jobs:
               "parse_mode": "Markdown"
             }' \
             https://api.telegram.org/bot${{ secrets.TELEGRAM_BOT_TOKEN }}/sendMessage
-
