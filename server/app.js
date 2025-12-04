@@ -1,0 +1,166 @@
+const express = require("express");
+const bcrypt = require('bcryptjs');
+const fileUpload = require("express-fileupload");
+const productsRouter = require("./routes/products");
+const productImagesRouter = require("./routes/productImages");
+const categoryRouter = require("./routes/category");
+const searchRouter = require("./routes/search");
+const mainImageRouter = require("./routes/mainImages");
+const userRouter = require("./routes/users");
+const orderRouter = require("./routes/customer_orders");
+const slugRouter = require("./routes/slugs");
+const orderProductRouter = require('./routes/customer_order_product');
+const wishlistRouter = require('./routes/wishlist');
+const notificationsRouter = require('./routes/notifications');
+const merchantRouter = require('./routes/merchant');
+var cors = require("cors");
+
+const { 
+  addRequestId, 
+  requestLogger, 
+  errorLogger, 
+  securityLogger 
+} = require('./middleware/requestLogger');
+
+const {
+  generalLimiter,
+  authLimiter,
+  registerLimiter,
+  userManagementLimiter,
+  uploadLimiter,
+  searchLimiter,
+  orderLimiter
+} = require('./middleware/rateLimiter');
+
+const {
+  passwordResetLimiter,
+  adminLimiter,
+  wishlistLimiter,
+  productLimiter
+} = require('./middleware/advancedRateLimiter');
+
+const {
+  handleServerError
+} = require('./utills/errorHandler');
+
+const app = express();
+
+app.set('trust proxy', 1);
+
+app.use(addRequestId);
+
+app.use(securityLogger);
+
+app.use(requestLogger);
+
+app.use(errorLogger);
+
+const allowedOrigins = [
+  'http://localhost:3000',
+  'http://localhost:3001',
+  process.env.NEXTAUTH_URL,
+  process.env.FRONTEND_URL,
+].filter(Boolean);
+
+const corsOptions = {
+  origin: function (origin, callback) {
+    if (!origin) return callback(null, true);
+
+    const allowed = [
+      'http://localhost:3000',
+      'http://localhost:3001',
+      'http://85.234.106.106:3000',
+      process.env.NEXTAUTH_URL,
+      process.env.FRONTEND_URL,
+    ].filter(Boolean);
+
+    if (allowed.includes(origin)) {
+      return callback(null, true);
+    }
+
+    console.warn(`Blocked CORS request from origin: ${origin}`);
+    return callback(new Error('Not allowed by CORS'), false);
+  },
+  methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+  allowedHeaders: ["Content-Type", "Authorization"],
+  credentials: true,
+  preflightContinue: false,
+  optionsSuccessStatus: 204,
+};
+
+app.use(cors(corsOptions));
+
+app.options('*', cors(corsOptions));
+//app.use(generalLimiter);
+
+app.use(express.json());
+app.use(fileUpload());
+
+// Apply specific rate limiters to different route groups
+//app.use("/api/users", userManagementLimiter);
+//app.use("/api/search", searchLimiter);
+//app.use("/api/orders", orderLimiter);
+//app.use("/api/order-product", orderLimiter);
+//app.use("/api/images", uploadLimiter);
+//app.use("/api/main-image", uploadLimiter);
+//app.use("/api/wishlist", wishlistLimiter);
+//app.use("/api/products", productLimiter);
+//app.use("/api/merchants", productLimiter);
+
+
+//app.use("/api/users/email", authLimiter); // For login attempts via email lookup
+
+//app.use("/api/users", adminLimiter); // Admin user management
+
+app.use("/api/products", productsRouter);
+app.use("/api/categories", categoryRouter);
+app.use("/api/images", productImagesRouter);
+app.use("/api/main-image", mainImageRouter);
+app.use("/api/users", userRouter);
+app.use("/api/search", searchRouter);
+app.use("/api/orders", orderRouter);
+app.use('/api/order-product', orderProductRouter);
+app.use("/api/slugs", slugRouter);
+app.use("/api/wishlist", wishlistRouter);
+app.use("/api/notifications", notificationsRouter);
+app.use("/api/merchants", merchantRouter); 
+
+app.get('/health', (req, res) => {
+  res.status(200).json({ 
+    status: 'OK', 
+    timestamp: new Date().toISOString(),
+    rateLimiting: 'enabled',
+    requestId: req.reqId
+  });
+});
+
+app.get('/rate-limit-info', (req, res) => {
+  res.status(200).json({
+    general: '100 requests per 15 minutes',
+    auth: '5 login attempts per 15 minutes',
+    register: '3 registrations per hour',
+    upload: '10 uploads per 15 minutes',
+    search: '30 searches per minute',
+    orders: '15 order operations per 15 minutes',
+    wishlist: '20 operations per 5 minutes',
+    products: '60 requests per minute',
+    requestId: req.reqId
+  });
+});
+
+app.use('*', (req, res) => {
+  res.status(404).json({
+    error: 'Route not found',
+    requestId: req.reqId
+  });
+});
+
+app.use((err, req, res, next) => {
+  handleServerError(err, res, `${req.method} ${req.path}`);
+});
+
+const PORT = process.env.PORT || 3001;
+app.listen(PORT, () => {
+  console.log(`Server running on port ${PORT}`);
+  console.log('Logs are being written to server/logs/ directory');
+});

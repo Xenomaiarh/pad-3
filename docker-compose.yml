@@ -1,0 +1,369 @@
+version: '3.8'
+
+services:
+  # MySQL Database
+  mysql:
+    image: mysql:8.0
+    container_name: eapp-mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: eapp
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql-data:/var/lib/mysql
+    networks:
+      - eapp-network
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      timeout: 20s
+      retries: 10
+
+  # Auth Service (Port 4001)
+  auth-service:
+    build:
+      context: ./services/auth-service
+      dockerfile: Dockerfile
+    container_name: eapp-auth-service
+    environment:
+      PORT: 4001
+      DATABASE_URL: mysql://root:root@mysql:3306/eapp_auth
+      JWT_SECRET: your-secret-key-here
+      NODE_ENV: development
+    ports:
+      - "4001:4001"
+    depends_on:
+      mysql:
+        condition: service_healthy
+    networks:
+      - eapp-network
+    restart: unless-stopped
+
+  # Catalog Service (Port 4002)
+  catalog-service:
+    build:
+      context: ./services/catalog-service
+      dockerfile: Dockerfile
+    container_name: eapp-catalog-service
+    environment:
+      PORT: 4002
+      DATABASE_URL: mysql://root:root@mysql:3306/eapp_catalog
+      AUTH_SERVICE_URL: http://auth-service:4001
+      NODE_ENV: development
+    ports:
+      - "4002:4002"
+    depends_on:
+      mysql:
+        condition: service_healthy
+      auth-service:
+        condition: service_started
+    networks:
+      - eapp-network
+    restart: unless-stopped
+
+  # Order Service (Port 4003)
+  order-service:
+    build:
+      context: ./services/order-service
+      dockerfile: Dockerfile
+    container_name: eapp-order-service
+    environment:
+      PORT: 4003
+      DATABASE_URL: mysql://root:root@mysql:3306/eapp_orders
+      AUTH_SERVICE_URL: http://auth-service:4001
+      CATALOG_SERVICE_URL: http://catalog-service:4002
+      NOTIFICATION_SERVICE_URL: http://notification-service:4004
+      NODE_ENV: development
+    ports:
+      - "4003:4003"
+    depends_on:
+      mysql:
+        condition: service_healthy
+      auth-service:
+        condition: service_started
+      catalog-service:
+        condition: service_started
+    networks:
+      - eapp-network
+    restart: unless-stopped
+
+  # Notification Service (Port 4004)
+  notification-service:
+    build:
+      context: ./services/notification-service
+      dockerfile: Dockerfile
+    container_name: eapp-notification-service
+    environment:
+      PORT: 4004
+      DATABASE_URL: mysql://root:root@mysql:3306/eapp_notifications
+      SMTP_HOST: smtp.gmail.com
+      SMTP_PORT: 587
+      SMTP_USER: ${SMTP_USER}
+      SMTP_PASSWORD: ${SMTP_PASSWORD}
+      NODE_ENV: development
+    ports:
+      - "4004:4004"
+    depends_on:
+      mysql:
+        condition: service_healthy
+    networks:
+      - eapp-network
+    restart: unless-stopped
+
+  # Merchant Service (Port 4005)
+  merchant-service:
+    build:
+      context: ./services/merchant-service
+      dockerfile: Dockerfile
+    container_name: eapp-merchant-service
+    environment:
+      PORT: 4005
+      DATABASE_URL: mysql://root:root@mysql:3306/eapp_merchants
+      AUTH_SERVICE_URL: http://auth-service:4001
+      NODE_ENV: development
+    ports:
+      - "4005:4005"
+    depends_on:
+      mysql:
+        condition: service_healthy
+      auth-service:
+        condition: service_started
+    networks:
+      - eapp-network
+    restart: unless-stopped
+
+  # Wishlist Service (Port 4006)
+  wishlist-service:
+    build:
+      context: ./services/wishlist-service
+      dockerfile: Dockerfile
+    container_name: eapp-wishlist-service
+    environment:
+      PORT: 4006
+      DATABASE_URL: mysql://root:root@mysql:3306/eapp_wishlist
+      AUTH_SERVICE_URL: http://auth-service:4001
+      CATALOG_SERVICE_URL: http://catalog-service:4002
+      NODE_ENV: development
+    ports:
+      - "4006:4006"
+    depends_on:
+      mysql:
+        condition: service_healthy
+      auth-service:
+        condition: service_started
+      catalog-service:
+        condition: service_started
+    networks:
+      - eapp-network
+    restart: unless-stopped
+
+  # User Service (Port 4007)
+  user-service:
+    build:
+      context: ./services/user-service
+      dockerfile: Dockerfile
+    container_name: eapp-user-service
+    environment:
+      PORT: 4007
+      DATABASE_URL: mysql://root:root@mysql:3306/eapp_users
+      AUTH_SERVICE_URL: http://auth-service:4001
+      NODE_ENV: development
+    ports:
+      - "4007:4007"
+    depends_on:
+      mysql:
+        condition: service_healthy
+      auth-service:
+        condition: service_started
+    networks:
+      - eapp-network
+    restart: unless-stopped
+
+  # Payment Service (Port 4008)
+  payment-service:
+    build:
+      context: ./services/payment-service
+      dockerfile: Dockerfile
+    container_name: eapp-payment-service
+    environment:
+      PORT: 4008
+      DATABASE_URL: mysql://root:root@mysql:3306/eapp_payments
+      ORDER_SERVICE_URL: http://order-service:4003
+      NOTIFICATION_SERVICE_URL: http://notification-service:4004
+      AUTH_SERVICE_URL: http://auth-service:4001
+      NODE_ENV: development
+    ports:
+      - "4008:4008"
+    depends_on:
+      mysql:
+        condition: service_healthy
+      auth-service:
+        condition: service_started
+      order-service:
+        condition: service_started
+    networks:
+      - eapp-network
+    restart: unless-stopped
+
+  # Shipping Service (Port 4009)
+  shipping-service:
+    build:
+      context: ./services/shipping-service
+      dockerfile: Dockerfile
+    container_name: eapp-shipping-service
+    environment:
+      PORT: 4009
+      DATABASE_URL: mysql://root:root@mysql:3306/eapp_shipping
+      AUTH_SERVICE_URL: http://auth-service:4001
+      ORDER_SERVICE_URL: http://order-service:4003
+      NODE_ENV: development
+    ports:
+      - "4009:4009"
+    depends_on:
+      mysql:
+        condition: service_healthy
+      auth-service:
+        condition: service_started
+      order-service:
+        condition: service_started
+    networks:
+      - eapp-network
+    restart: unless-stopped
+
+  # Review Service (Port 4010)
+  review-service:
+    build:
+      context: ./services/review-service
+      dockerfile: Dockerfile
+    container_name: eapp-review-service
+    environment:
+      PORT: 4010
+      DATABASE_URL: mysql://root:root@mysql:3306/eapp_reviews
+      AUTH_SERVICE_URL: http://auth-service:4001
+      CATALOG_SERVICE_URL: http://catalog-service:4002
+      NODE_ENV: development
+    ports:
+      - "4010:4010"
+    depends_on:
+      mysql:
+        condition: service_healthy
+      auth-service:
+        condition: service_started
+      catalog-service:
+        condition: service_started
+    networks:
+      - eapp-network
+    restart: unless-stopped
+
+  # Inventory Service (Port 4011)
+  inventory-service:
+    build:
+      context: ./services/inventory-service
+      dockerfile: Dockerfile
+    container_name: eapp-inventory-service
+    environment:
+      PORT: 4011
+      DATABASE_URL: mysql://root:root@mysql:3306/eapp_inventory
+      AUTH_SERVICE_URL: http://auth-service:4001
+      CATALOG_SERVICE_URL: http://catalog-service:4002
+      NODE_ENV: development
+    ports:
+      - "4011:4011"
+    depends_on:
+      mysql:
+        condition: service_healthy
+      auth-service:
+        condition: service_started
+      catalog-service:
+        condition: service_started
+    networks:
+      - eapp-network
+    restart: unless-stopped
+
+  # Analytics Service (Port 4012)
+  analytics-service:
+    build:
+      context: ./services/analytics-service
+      dockerfile: Dockerfile
+    container_name: eapp-analytics-service
+    environment:
+      PORT: 4012
+      DATABASE_URL: mysql://root:root@mysql:3306/eapp_analytics
+      AUTH_SERVICE_URL: http://auth-service:4001
+      NODE_ENV: development
+    ports:
+      - "4012:4012"
+    depends_on:
+      mysql:
+        condition: service_healthy
+      auth-service:
+        condition: service_started
+    networks:
+      - eapp-network
+    restart: unless-stopped
+
+  # API Gateway (Port 3001)
+  api-gateway:
+    build:
+      context: ./server
+      dockerfile: Dockerfile
+    container_name: eapp-gateway
+    environment:
+      GATEWAY_PORT: 3001
+      AUTH_SERVICE_URL: http://auth-service:4001
+      CATALOG_SERVICE_URL: http://catalog-service:4002
+      ORDER_SERVICE_URL: http://order-service:4003
+      NOTIFICATION_SERVICE_URL: http://notification-service:4004
+      MERCHANT_SERVICE_URL: http://merchant-service:4005
+      WISHLIST_SERVICE_URL: http://wishlist-service:4006
+      USER_SERVICE_URL: http://user-service:4007
+      PAYMENT_SERVICE_URL: http://payment-service:4008
+      SHIPPING_SERVICE_URL: http://shipping-service:4009
+      REVIEW_SERVICE_URL: http://review-service:4010
+      INVENTORY_SERVICE_URL: http://inventory-service:4011
+      ANALYTICS_SERVICE_URL: http://analytics-service:4012
+      NODE_ENV: development
+    ports:
+      - "3001:3001"
+    depends_on:
+      - auth-service
+      - catalog-service
+      - order-service
+      - notification-service
+      - merchant-service
+      - wishlist-service
+      - user-service
+      - payment-service
+      - shipping-service
+      - review-service
+      - inventory-service
+      - analytics-service
+    networks:
+      - eapp-network
+    restart: unless-stopped
+
+  # Frontend (Next.js - Port 3000)
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile.frontend
+    container_name: eapp-frontend
+    environment:
+      NEXT_PUBLIC_API_BASE_URL: http://api-gateway:3001
+      NEXTAUTH_URL: http://localhost:3000
+      NEXTAUTH_SECRET: your-secret-key-here
+      AUTH_SERVICE_URL: http://auth-service:4001
+    ports:
+      - "3000:3000"
+    depends_on:
+      - api-gateway
+    networks:
+      - eapp-network
+    restart: unless-stopped
+
+volumes:
+  mysql-data:
+
+networks:
+  eapp-network:
+    driver: bridge

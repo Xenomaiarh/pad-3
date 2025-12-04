@@ -1,0 +1,197 @@
+name: CI/CD - Services
+
+on:
+  push:
+    branches: [ '**' ]
+  pull_request:
+    branches: [ '**' ]
+
+env:
+  REGISTRY: ghcr.io
+
+jobs:
+  # 1) Detect changes across service folders
+  detect_changes:
+    name: Detect changed services
+    runs-on: ubuntu-latest
+    outputs:
+      services_changed: ${{ steps.filter.outputs.services }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+
+      - name: Detect paths
+        id: filter
+        uses: dorny/paths-filter@v2
+        with:
+          filters: |
+            services:
+              - 'services/**'
+            server:
+              - 'server/**'
+            frontend:
+              - 'app/**'
+            root:
+              - 'package.json'
+
+  # 2) Run tests for changed services (if any)
+  run_tests:
+    name: Run tests for changed services
+    runs-on: ubuntu-latest
+    needs: detect_changes
+    if: needs.detect_changes.outputs.services == 'true' || github.event_name == 'pull_request'
+    outputs:
+      services: ${{ steps.set-services.outputs.services }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 50
+
+      - name: Get changed files
+        id: changes
+        run: |
+          # get list of changed files between HEAD and base (works in push and PR)
+          if [ "${{ github.event.pull_request.base.sha }}" != "" ]; then
+            base=${{ github.event.pull_request.base.sha }}
+          else
+            base=${{ github.event.before }}
+          fi
+          echo "base=$base"
+          files=$(git diff --name-only $base ${{ github.sha }} || true)
+          echo "files<<EOF" >> $GITHUB_OUTPUT
+          echo "$files" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
+      - name: Compute changed services list
+        id: set-services
+        run: |
+          files=$(cat $GITHUB_OUTPUT | sed -n 's/files=//p' | sed -n '2,$p' | sed '$d' || true)
+          # fallback: use git diff directly if $GITHUB_OUTPUT parsing fails
+          if [ -z "$files" ]; then
+            if [ "${{ github.event.pull_request.base.sha }}" != "" ]; then
+              base=${{ github.event.pull_request.base.sha }}
+            else
+              base=${{ github.event.before }}
+            fi
+            files=$(git diff --name-only $base ${{ github.sha }} || true)
+          fi
+          services=$(echo "$files" | grep '^services/' || true | cut -d/ -f2 | sort -u | jq -R -s -c 'split("\n")[:-1]')
+          if [ -z "$services" ] || [ "$services" = "null" ]; then
+            services='[]'
+          fi
+          echo "services=$services" >> $GITHUB_OUTPUT
+
+      - name: Run per-service tests
+        if: steps.set-services.outputs.services != '[]'
+        run: |
+          services=${{ steps.set-services.outputs.services }}
+          echo "Services changed: $services"
+          for svc in $(echo "$services" | jq -r '.[]'); do
+            echo "\n==== Testing $svc ===="
+            cd services/$svc
+            # install deps
+            npm ci --no-audit --no-fund
+            # generate prisma client if present
+            if jq -e '.scripts["prisma:generate"]' package.json > /dev/null 2>&1; then
+              npm run prisma:generate || (echo "prisma generate failed for $svc"; exit 1)
+            fi
+            # run tests if defined
+            if jq -e '.scripts.test' package.json > /dev/null 2>&1; then
+              echo "Running npm test for $svc"
+              npm test || (echo "Tests failed for $svc"; exit 1)
+            else
+              echo "No test script for $svc — running basic lint/smoke checks"
+              # basic smoke: check server file exists and is valid JS syntax
+              if [ -f src/server.js ]; then
+                node -e "require('./src/server.js'); process.exit(0);" || echo "Note: requiring './src/server.js' may start the server; ensure tests exist for CI"
+              else
+                echo "No src/server.js found for $svc"
+              fi
+            fi
+            cd - >/dev/null
+          done
+
+  # 3) Build and push changed service images to GHCR (matrix from services list)
+  build_and_push:
+    name: Build and push changed images
+    runs-on: ubuntu-latest
+    needs: run_tests
+    if: needs.run_tests.outputs.services != '[]'
+    strategy:
+      matrix:
+        service: ${{ fromJson(needs.run_tests.outputs.services) }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v2
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v2
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push image for service
+        uses: docker/build-push-action@v4
+        with:
+          context: ./services/${{ matrix.service }}
+          file: ./services/${{ matrix.service }}/Dockerfile
+          push: true
+          tags: |
+            ghcr.io/${{ github.repository_owner }}/${{ matrix.service }}:${{ github.sha }}
+            ghcr.io/${{ github.repository_owner }}/${{ matrix.service }}:latest
+
+  # 4) Optional: Deploy to remote via SSH when pushing to main and secrets are set
+  deploy:
+    name: Deploy to remote server (optional)
+    runs-on: ubuntu-latest
+    needs: build_and_push
+    if: github.ref == 'refs/heads/main' && (secrets.DEPLOY_HOST && secrets.DEPLOY_USER && secrets.DEPLOY_SSH_KEY)
+    steps:
+      - name: Install SSH key
+        uses: webfactory/ssh-agent@v0.8.1
+        with:
+          ssh-private-key: ${{ secrets.DEPLOY_SSH_KEY }}
+      - name: Run remote deploy commands (pull compose from repo and run)
+        uses: appleboy/ssh-action@v0.1.8
+        with:
+          host: ${{ secrets.DEPLOY_HOST }}
+          username: ${{ secrets.DEPLOY_USER }}
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          port: ${{ secrets.DEPLOY_SSH_PORT || '22' }}
+          script: |
+            set -e
+            OWNER=${{ github.repository_owner }}
+            BRANCH=${{ github.ref_name }}
+            REMOTE_DIR=${{ secrets.DEPLOY_REMOTE_DIR || '/opt/eapp' }}
+            echo "Logging into GHCR on remote"
+            echo ${{ secrets.GHCR_PAT }} | docker login ghcr.io -u ${OWNER} --password-stdin || true
+            mkdir -p ${REMOTE_DIR}
+            cd ${REMOTE_DIR}
+            echo "Downloading docker-compose from repo"
+            curl -fsSL -o docker-compose.yml "https://raw.githubusercontent.com/${{ github.repository }}/${BRANCH}/deploy/docker-compose.deploy.yml"
+            if [ -f docker-compose.yml ]; then
+              echo "Replacing OWNER placeholder with ${OWNER}"
+              sed -i "s/OWNER/${OWNER}/g" docker-compose.yml
+            else
+              echo "Failed to download docker-compose.deploy.yml"
+              exit 1
+            fi
+            echo "Pulling images and starting stack"
+            docker compose pull || true
+            docker compose up -d --remove-orphans
+
+
+# Notes:
+# - Set secrets: GITHUB_TOKEN (automatic), GHCR_PAT (if needed), DEPLOY_HOST, DEPLOY_USER, DEPLOY_SSH_KEY, DEPLOY_SSH_PORT
+# - On PRs this runs detection and tests. On pushes it also builds and pushes images for changed services.
+# - The deploy step runs only on push to main when deploy secrets are configured.

@@ -1,0 +1,49 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+model DailyStat {
+  id           String   @id @default(cuid())
+  date         DateTime @unique
+  totalOrders  Int      @default(0)
+  totalRevenue Float    @default(0)
+  newUsers     Int      @default(0)
+  totalUsers   Int      @default(0)
+  avgOrderValue Float   @default(0)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@map("daily_stats")
+}
+
+model ProductStat {
+  id           String   @id @default(cuid())
+  productId    String   @unique
+  views        Int      @default(0)
+  purchases    Int      @default(0)
+  revenue      Float    @default(0)
+  rating       Float    @default(0)
+  reviewCount  Int      @default(0)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@map("product_stats")
+}
+
+model UserStat {
+  id           String   @id @default(cuid())
+  userId       String   @unique
+  totalOrders  Int      @default(0)
+  totalSpent   Float    @default(0)
+  avgOrderValue Float   @default(0)
+  lastOrder    DateTime?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@map("user_stats")
+}

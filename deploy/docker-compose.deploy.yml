@@ -1,0 +1,202 @@
+version: '3.8'
+
+services:
+  mysql:
+    image: mysql:8.0
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: eapp
+    volumes:
+      - mysql-data:/var/lib/mysql
+    networks:
+      - eapp-network
+
+  auth-service:
+    image: ghcr.io/OWNER/auth-service:latest
+    environment:
+      PORT: 4001
+      DATABASE_URL: mysql://root:root@mysql:3306/eapp_auth
+      JWT_SECRET: your-secret-key-here
+    ports:
+      - "4001:4001"
+    depends_on:
+      - mysql
+    networks:
+      - eapp-network
+
+  catalog-service:
+    image: ghcr.io/OWNER/catalog-service:latest
+    environment:
+      PORT: 4002
+      DATABASE_URL: mysql://root:root@mysql:3306/eapp_catalog
+      AUTH_SERVICE_URL: http://auth-service:4001
+    ports:
+      - "4002:4002"
+    depends_on:
+      - mysql
+      - auth-service
+    networks:
+      - eapp-network
+
+  order-service:
+    image: ghcr.io/OWNER/order-service:latest
+    environment:
+      PORT: 4003
+      DATABASE_URL: mysql://root:root@mysql:3306/eapp_orders
+      AUTH_SERVICE_URL: http://auth-service:4001
+      CATALOG_SERVICE_URL: http://catalog-service:4002
+      NOTIFICATION_SERVICE_URL: http://notification-service:4004
+    ports:
+      - "4003:4003"
+    depends_on:
+      - mysql
+      - auth-service
+      - catalog-service
+    networks:
+      - eapp-network
+
+  notification-service:
+    image: ghcr.io/OWNER/notification-service:latest
+    environment:
+      PORT: 4004
+      DATABASE_URL: mysql://root:root@mysql:3306/eapp_notifications
+      SMTP_HOST: smtp.gmail.com
+      SMTP_PORT: 587
+      SMTP_USER: ${SMTP_USER}
+      SMTP_PASSWORD: ${SMTP_PASSWORD}
+    ports:
+      - "4004:4004"
+    depends_on:
+      - mysql
+    networks:
+      - eapp-network
+
+  merchant-service:
+    image: ghcr.io/OWNER/merchant-service:latest
+    environment:
+      PORT: 4005
+      DATABASE_URL: mysql://root:root@mysql:3306/eapp_merchants
+      AUTH_SERVICE_URL: http://auth-service:4001
+    ports:
+      - "4005:4005"
+    depends_on:
+      - mysql
+      - auth-service
+    networks:
+      - eapp-network
+
+  wishlist-service:
+    image: ghcr.io/OWNER/wishlist-service:latest
+    environment:
+      PORT: 4006
+      DATABASE_URL: mysql://root:root@mysql:3306/eapp_wishlist
+      AUTH_SERVICE_URL: http://auth-service:4001
+      CATALOG_SERVICE_URL: http://catalog-service:4002
+    ports:
+      - "4006:4006"
+    depends_on:
+      - mysql
+      - auth-service
+      - catalog-service
+    networks:
+      - eapp-network
+
+  user-service:
+    image: ghcr.io/OWNER/user-service:latest
+    environment:
+      PORT: 4007
+      DATABASE_URL: mysql://root:root@mysql:3306/eapp_users
+      AUTH_SERVICE_URL: http://auth-service:4001
+    ports:
+      - "4007:4007"
+    depends_on:
+      - mysql
+      - auth-service
+    networks:
+      - eapp-network
+
+  payment-service:
+    image: ghcr.io/OWNER/payment-service:latest
+    environment:
+      PORT: 4008
+      DATABASE_URL: mysql://root:root@mysql:3306/eapp_payments
+      ORDER_SERVICE_URL: http://order-service:4003
+      NOTIFICATION_SERVICE_URL: http://notification-service:4004
+      AUTH_SERVICE_URL: http://auth-service:4001
+    ports:
+      - "4008:4008"
+    depends_on:
+      - mysql
+      - auth-service
+      - order-service
+    networks:
+      - eapp-network
+
+  shipping-service:
+    image: ghcr.io/OWNER/shipping-service:latest
+    environment:
+      PORT: 4009
+      DATABASE_URL: mysql://root:root@mysql:3306/eapp_shipping
+      AUTH_SERVICE_URL: http://auth-service:4001
+      ORDER_SERVICE_URL: http://order-service:4003
+    ports:
+      - "4009:4009"
+    depends_on:
+      - mysql
+      - auth-service
+      - order-service
+    networks:
+      - eapp-network
+
+  review-service:
+    image: ghcr.io/OWNER/review-service:latest
+    environment:
+      PORT: 4010
+      DATABASE_URL: mysql://root:root@mysql:3306/eapp_reviews
+      AUTH_SERVICE_URL: http://auth-service:4001
+      CATALOG_SERVICE_URL: http://catalog-service:4002
+    ports:
+      - "4010:4010"
+    depends_on:
+      - mysql
+      - auth-service
+      - catalog-service
+    networks:
+      - eapp-network
+
+  inventory-service:
+    image: ghcr.io/OWNER/inventory-service:latest
+    environment:
+      PORT: 4011
+      DATABASE_URL: mysql://root:root@mysql:3306/eapp_inventory
+      AUTH_SERVICE_URL: http://auth-service:4001
+      CATALOG_SERVICE_URL: http://catalog-service:4002
+    ports:
+      - "4011:4011"
+    depends_on:
+      - mysql
+      - auth-service
+      - catalog-service
+    networks:
+      - eapp-network
+
+  analytics-service:
+    image: ghcr.io/OWNER/analytics-service:latest
+    environment:
+      PORT: 4012
+      DATABASE_URL: mysql://root:root@mysql:3306/eapp_analytics
+      AUTH_SERVICE_URL: http://auth-service:4001
+    ports:
+      - "4012:4012"
+    depends_on:
+      - mysql
+      - auth-service
+    networks:
+      - eapp-network
+
+volumes:
+  mysql-data:
+
+networks:
+  eapp-network:
+    driver: bridge
