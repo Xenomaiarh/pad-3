@@ -84,6 +84,12 @@ jobs:
           # extract service names from paths like services/service-name/...
           services=$(echo "$files" | grep '^services/' | cut -d/ -f2 | sort -u | jq -R -s -c 'split("\n") | map(select(length > 0))')
           
+          # if no services found via git diff, list all services from directory
+          if [ -z "$services" ] || [ "$services" = "null" ] || [ "$services" = "[]" ]; then
+            echo "No services detected via git diff, listing all services from directory..."
+            services=$(ls -d services/*/ 2>/dev/null | sed 's|services/||g' | sed 's|/||g' | jq -R -s -c 'split("\n") | map(select(length > 0))')
+          fi
+          
           # ensure valid JSON array
           if [ -z "$services" ] || [ "$services" = "null" ]; then
             services='[]'
