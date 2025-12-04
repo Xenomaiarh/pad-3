@@ -3,29 +3,23 @@ import apiClient from "@/lib/api";
 import React from "react";
 import { sanitize } from "@/lib/sanitize";
 
-interface Props {
-  searchParams: { search: string };
-}
+type SearchParams = { search?: string };
 
-// sending api request for search results for a given search text
-const SearchPage = async ({ searchParams }: Props) => {
-  const sp = await searchParams;
-  let products = [];
+export default async function SearchPage({ searchParams }: { searchParams?: Promise<SearchParams> }) {
+  const sp = (await searchParams) || {};
+  let products: any[] = [];
 
   try {
-    const data = await apiClient.get(
-      `/api/search?query=${sp?.search || ""}`
-    );
-
+    const data = await apiClient.get(`/api/search?query=${sp.search || ""}`);
     if (!data.ok) {
-      console.error('Failed to fetch search results:', data.statusText);
+      console.error("Failed to fetch search results:", data.statusText);
       products = [];
     } else {
       const result = await data.json();
       products = Array.isArray(result) ? result : [];
     }
   } catch (error) {
-    console.error('Error fetching search results:', error);
+    console.error("Error fetching search results:", error);
     products = [];
   }
 
@@ -33,9 +27,9 @@ const SearchPage = async ({ searchParams }: Props) => {
     <div>
       <SectionTitle title="Search Page" path="Home | Search" />
       <div className="max-w-screen-2xl mx-auto">
-        {sp?.search && (
+        {sp.search && (
           <h3 className="text-4xl text-center py-10 max-sm:text-3xl">
-            Showing results for {sanitize(sp?.search)}
+            Showing results for {sanitize(sp.search)}
           </h3>
         )}
         <div className="grid grid-cols-4 justify-items-center gap-x-2 gap-y-5 max-[1300px]:grid-cols-3 max-lg:grid-cols-2 max-[500px]:grid-cols-1">
@@ -52,10 +46,4 @@ const SearchPage = async ({ searchParams }: Props) => {
       </div>
     </div>
   );
-};
-
-export default SearchPage;
-
-/*
-
-*/
+}

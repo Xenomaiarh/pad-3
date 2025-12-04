@@ -1,12 +1,12 @@
-import NextAuth, { NextAuthOptions } from "next-auth";
-import { Account, User as AuthUser } from "next-auth";
+import NextAuth from "next-auth/next";
+import type { User } from "next-auth";
 import GithubProvider from "next-auth/providers/github";
 import CredentialsProvider from "next-auth/providers/credentials";
 import GoogleProvider from "next-auth/providers/google";
 import bcrypt from "bcryptjs";
 import { nanoid } from "nanoid";
 
-export const authOptions: NextAuthOptions = {
+const authOptions = {
   // Configure one or more authentication providers
   providers: [
       CredentialsProvider({
@@ -57,7 +57,7 @@ export const authOptions: NextAuthOptions = {
     // }),
   ],
   callbacks: {
-    async signIn({ user, account }: { user: AuthUser; account: Account }) {
+    async signIn({ user, account }: { user: User; account: any }) {
       if (account?.provider === "credentials") {
         return true;
       }
@@ -94,7 +94,7 @@ export const authOptions: NextAuthOptions = {
     error: '/login', // Redirect to login page on auth errors
   },
   session: {
-    strategy: "jwt",
+    strategy: 'jwt',
     maxAge: 15 * 60, // 15 minutes in seconds
     updateAge: 5 * 60, // Update session every 5 minutes
   },
@@ -105,5 +105,5 @@ export const authOptions: NextAuthOptions = {
   debug: process.env.NODE_ENV === "development",
 };
 
-export const handler = NextAuth(authOptions);
+const handler = NextAuth(authOptions);
 export { handler as GET, handler as POST };

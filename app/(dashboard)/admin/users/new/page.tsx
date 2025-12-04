@@ -1,5 +1,6 @@
 "use client";
 import { DashboardSidebar } from "@/components";
+import apiClient from "@/lib/api";
 import { isValidEmailAddressFormat } from "@/lib/utils";
 import React, { useState } from "react";
 import toast from "react-hot-toast";
@@ -36,29 +37,23 @@ const DashboardCreateNewUser = () => {
       }
 
       if (userInput.password.length > 7) {
-        const requestOptions: any = {
-          method: "post",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(sanitizedUserInput),
-        };
-        ap(`/api/users`, requestOptions)
+        apiClient
+          .post(`/api/users`, sanitizedUserInput)
           .then((response) => {
-            if(response.status === 201){
+            if (response.status === 201) {
               return response.json();
-
-            }else{
-              
-              throw Error("Error while creating user");
             }
+            throw Error("Error while creating user");
           })
-          .then((data) => {
+          .then(() => {
             toast.success("User added successfully");
             setUserInput({
               email: "",
               password: "",
               role: "user",
             });
-          }).catch(error => {
+          })
+          .catch(() => {
             toast.error("Error while creating user");
           });
       } else {
