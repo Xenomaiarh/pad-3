@@ -159,12 +159,10 @@ jobs:
     steps:
       - name: Install SSH key
         uses: webfactory/ssh-agent@v0.8.1
-        if: secrets.DEPLOY_SSH_KEY != ''
         with:
           ssh-private-key: ${{ secrets.DEPLOY_SSH_KEY }}
       - name: Run remote deploy commands (pull compose from repo and run)
         uses: appleboy/ssh-action@v0.1.8
-        if: secrets.DEPLOY_HOST != ''
         with:
           host: ${{ secrets.DEPLOY_HOST }}
           username: ${{ secrets.DEPLOY_USER }}
