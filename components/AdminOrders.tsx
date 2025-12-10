@@ -11,8 +11,8 @@ const AdminOrders = () => {
     const fetchOrders = async () => {
       const response = await apiClient.get("/api/orders");
       const data = await response.json();
-      
-      setOrders(data?.orders);
+      const orders = data?.orders || data?.items || [];
+      setOrders(orders);
     };
     fetchOrders();
   }, []);

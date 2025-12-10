@@ -16,7 +16,7 @@ export default async function SearchPage({ searchParams }: { searchParams?: Prom
       products = [];
     } else {
       const result = await data.json();
-      products = Array.isArray(result) ? result : [];
+      products = Array.isArray(result) ? result : (result?.items || []);
     }
   } catch (error) {
     console.error("Error fetching search results:", error);

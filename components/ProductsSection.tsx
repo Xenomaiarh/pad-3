@@ -5,7 +5,7 @@ import Heading from "./Heading";
 import apiClient from "@/lib/api";
 
 const ProductsSection = async () => {
-  let products = [];
+  let products: any[] = [];
   
   try {
     // sending API request for getting all products
@@ -16,8 +16,8 @@ const ProductsSection = async () => {
       products = [];
     } else {
       const result = await data.json();
-      // Ensure products is an array
-      products = Array.isArray(result) ? result : [];
+      // Ensure products is an array - handle both array and {items: [...]} format
+      products = Array.isArray(result) ? result : (result?.items || []);
     }
   } catch (error) {
     console.error('Error fetching products:', error);

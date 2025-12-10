@@ -1,5 +1,4 @@
 const bcrypt = require("bcryptjs");
-const { nanoid } = require("nanoid");
 const prisma = require("../prisma/client");
 const { registrationSchema } = require("../validation/registrationSchema");
 const { checkRateLimit } = require("../utils/rateLimit");
@@ -40,6 +39,8 @@ module.exports.register = async (req, res) => {
         }
 
         const hashedPassword = await bcrypt.hash(password, 14);
+
+        const { nanoid } = await import("nanoid");
 
         const newUser = await prisma.user.create({
             data: {

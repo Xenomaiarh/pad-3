@@ -17,7 +17,8 @@ const DashboardProductTable = () => {
         return res.json();
       })
       .then((data) => {
-        setProducts(data);
+        const products = Array.isArray(data) ? data : (data?.items || []);
+        setProducts(products);
       });
   }, []);
 

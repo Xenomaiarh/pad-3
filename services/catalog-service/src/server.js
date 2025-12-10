@@ -70,11 +70,12 @@ app.get('/products', (req, res) => {
     }
 });
 
-// GET /products/:id - product details
+// GET /products/:id - product details by ID
 app.get('/products/:id', (req, res) => {
     try {
         const id = req.params.id;
-        const product = PRODUCTS.find(p => p.id === id);
+        // First try to find by id, then by slug
+        const product = PRODUCTS.find(p => p.id === id || p.slug === id);
         if (!product) return res.status(404).json({ error: 'Product not found' });
         res.json(product);
     } catch (err) {

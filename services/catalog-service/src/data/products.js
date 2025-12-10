@@ -3,6 +3,7 @@ module.exports = {
   products: [
     {
       id: 'p1',
+      slug: 'wireless-headphones',
       title: 'Wireless Headphones',
       description: 'Comfortable wireless headphones with noise cancellation.',
       price: 99.99,
@@ -13,6 +14,7 @@ module.exports = {
     },
     {
       id: 'p2',
+      slug: 'gaming-mouse234555',
       title: 'Gaming Mouse234555',
       description: 'Ergonomic gaming mouse with programmable buttons.',
       price: 49.5,
@@ -23,6 +25,7 @@ module.exports = {
     },
     {
       id: 'p3',
+      slug: 'coffee-mug',
       title: 'Coffee Mug',
       description: 'Ceramic mug 350ml.',
       price: 9.99,
@@ -33,6 +36,7 @@ module.exports = {
     },
     {
       id: 'p4',
+      slug: 'yoga-mat',
       title: 'Yoga Mat',
       description: 'Non-slip yoga mat 6mm.',
       price: 25.0,

@@ -31,7 +31,8 @@ const Header = () => {
     const response = await apiClient.get(`/api/wishlist/${id}`, {
       cache: "no-store",
     });
-    const wishlist = await response.json();
+    const data = await response.json();
+    const wishlist = Array.isArray(data) ? data : (data?.items || []);
     const productArray: {
       id: string;
       title: string;

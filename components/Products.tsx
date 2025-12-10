@@ -29,7 +29,7 @@ const Products = async ({ params, searchParams }: { params: { slug?: string[] },
     stockMode = "gt";
   }
 
-  let products = [];
+  let products: any[] = [];
 
   try {
     // sending API request with filtering, sorting and pagination for getting all products
@@ -49,7 +49,7 @@ const Products = async ({ params, searchParams }: { params: { slug?: string[] },
       products = [];
     } else {
       const result = await data.json();
-      products = Array.isArray(result) ? result : [];
+      products = Array.isArray(result) ? result : (result?.items || []);
     }
   } catch (error) {
     console.error('Error fetching products:', error);

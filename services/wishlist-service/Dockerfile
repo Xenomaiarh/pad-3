@@ -4,10 +4,17 @@ WORKDIR /app
 
 COPY package*.json ./
 
-RUN npm install --production
+# Ensure OpenSSL for Prisma engines
+RUN apk add --no-cache openssl
+
+# Install all deps for prisma CLI
+RUN npm install --include=dev
 
 COPY . .
 
+# Generate Prisma client
+RUN npx prisma generate || true
+
 EXPOSE 4006
 
-CMD ["node", "src/server.js"]
+CMD ["sh","-c","npx prisma db push --accept-data-loss && node src/server.js"]

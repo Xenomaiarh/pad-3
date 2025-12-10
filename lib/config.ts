@@ -1,6 +1,9 @@
 const config = {
   // Main API Gateway
-  apiBaseUrl: process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:3001',
+  // For server-side (SSR) use internal Docker DNS, for client-side use localhost
+  apiBaseUrl: typeof window === 'undefined' 
+    ? (process.env.API_BASE_URL || 'http://api-gateway:3001')  // Server-side (SSR)
+    : (process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:3001'), // Client-side
   
   // Microservices endpoints (optional direct access)
   services: {

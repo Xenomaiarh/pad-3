@@ -1,14 +1,22 @@
 import { getServerSession } from "next-auth/next";
-import { authOptions } from "@/app/api/auth/[...nextauth]/route";
+import { authOptions } from "@/app/api/auth/[...nextauth]/authOptions";
+import { redirect } from "next/navigation";
 
 export async function isAdmin(): Promise<boolean> {
   const session = await getServerSession(authOptions);
-  return (session as any)?.user?.role === "admin";
+  return session?.user?.role === "admin";
 }
 
 export async function requireAdmin() {
-  const admin = await isAdmin();
-  if (!admin) {
-    throw new Error("Admin access required");
+  const session = await getServerSession(authOptions);
+
+  if (!session) {
+    redirect("/login");
   }
+
+  if (session.user?.role !== "admin") {
+    redirect("/");
+  }
+
+  return session;
 }

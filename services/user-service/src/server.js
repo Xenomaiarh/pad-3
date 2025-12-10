@@ -23,6 +23,24 @@ app.get("/health", (req, res) => {
     });
 });
 
+// Get user by email
+app.get("/users/email/:email", async (req, res) => {
+    try {
+        const user = await prisma.user.findUnique({
+            where: { email: req.params.email }
+        });
+        
+        if (!user) {
+            return res.status(404).json({ error: 'User not found' });
+        }
+        
+        res.json(user);
+    } catch (error) {
+        console.error('GET /users/email/:email error', error);
+        res.status(500).json({ error: 'Internal Server Error' });
+    }
+});
+
 // Get user profile
 app.get("/users/:userId", async (req, res) => {
     try {
